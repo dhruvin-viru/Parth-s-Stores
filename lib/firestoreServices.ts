@@ -22,6 +22,25 @@ function handleFirestorePermissionError(error: any, actionName: string) {
   }
 }
 
+/**
+ * Removes undefined fields from objects before saving to Firestore,
+ * preventing 'Unsupported field value: undefined' errors.
+ */
+function sanitizeData<T extends Record<string, any>>(obj: T): Record<string, any> {
+  const result: Record<string, any> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      if (value && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
+        result[key] = sanitizeData(value);
+      } else {
+        result[key] = value;
+      }
+    }
+  }
+  return result;
+}
+
+
 // --- PRODUCTS ---
 export async function getProducts(categorySlug?: string, searchQuery?: string): Promise<Product[]> {
   try {
@@ -61,10 +80,11 @@ export async function getProductById(id: string): Promise<Product | null> {
 export async function createProduct(product: Omit<Product, 'id' | 'createdAt'>): Promise<string> {
   try {
     const productsRef = collection(db, 'products');
-    const newDoc = await addDoc(productsRef, {
+    const cleaned = sanitizeData({
       ...product,
       createdAt: new Date().toISOString()
     });
+    const newDoc = await addDoc(productsRef, cleaned);
     return newDoc.id;
   } catch (error) {
     handleFirestorePermissionError(error, 'createProduct');
@@ -75,7 +95,7 @@ export async function createProduct(product: Omit<Product, 'id' | 'createdAt'>):
 export async function updateProduct(id: string, updates: Partial<Product>): Promise<void> {
   try {
     const docRef = doc(db, 'products', id);
-    await updateDoc(docRef, updates);
+    await updateDoc(docRef, sanitizeData(updates));
   } catch (error) {
     handleFirestorePermissionError(error, 'updateProduct');
     throw error;
@@ -202,12 +222,12 @@ export async function createCoupon(coupon: Omit<Coupon, 'id' | 'usedCount'>): Pr
 export async function createOrder(orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt' | 'status'>): Promise<string> {
   try {
     const ordersRef = collection(db, 'orders');
-    const newOrder = {
+    const newOrder = sanitizeData({
       ...orderData,
       status: 'pending' as OrderStatus,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
-    };
+    });
     const docRef = await addDoc(ordersRef, newOrder);
 
     // If coupon used, increment count
