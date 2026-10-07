@@ -1,17 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useCartStore } from '@/store/useCartStore';
 import { useAuth } from '@/context/AuthContext';
 import { createOrder, validateCoupon } from '@/lib/firestoreServices';
-import { ShoppingBag, Tag, Check, ShieldCheck, CreditCard, Truck, ArrowRight, Lock } from 'lucide-react';
+import { ShoppingBag, Tag, Check, ShieldCheck, CreditCard, Truck, ArrowRight, Lock, UserCheck, LogIn } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const {
     items,
     getSubtotal,
@@ -24,13 +25,23 @@ export default function CheckoutPage() {
   } = useCartStore();
 
   const [customerDetails, setCustomerDetails] = useState({
-    name: user?.displayName || 'Alex Mercer',
-    email: user?.email || 'alex.mercer@example.com',
-    phone: '+1 (555) 234-5678',
-    address: '742 Evergreen Terrace',
-    city: 'Springfield',
-    zipCode: '97477'
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    zipCode: ''
   });
+
+  useEffect(() => {
+    if (user) {
+      setCustomerDetails((prev) => ({
+        ...prev,
+        name: prev.name || user.displayName || user.email?.split('@')[0] || '',
+        email: user.email || prev.email || '',
+      }));
+    }
+  }, [user]);
 
   const [couponInput, setCouponInput] = useState('');
   const [validatingCoupon, setValidatingCoupon] = useState(false);
@@ -59,6 +70,12 @@ export default function CheckoutPage() {
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) {
+      toast.error('Login required! Please sign in to place your order.');
+      router.push('/login');
+      return;
+    }
+
     if (items.length === 0) {
       toast.error('Your cart is empty.');
       return;
@@ -77,7 +94,7 @@ export default function CheckoutPage() {
       }));
 
       const orderId = await createOrder({
-        userId: user ? user.uid : 'guest-' + Date.now(),
+        userId: user.uid,
         customerDetails,
         items: orderItems,
         subtotal,
@@ -109,6 +126,39 @@ export default function CheckoutPage() {
     );
   }
 
+  // Customer Login Requirement Screen
+  if (!user && !loading) {
+    return (
+      <div className="py-16 max-w-md mx-auto text-center space-y-6">
+        <div className="w-16 h-16 rounded-3xl bg-brand-50 text-brand-600 flex items-center justify-center mx-auto shadow-md">
+          <LogIn className="w-8 h-8" />
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+            Account Login Required
+          </h1>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            You must be logged in to place an order and track real-time delivery status.
+          </p>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl space-y-4">
+          <Link
+            href="/login"
+            className="w-full py-3.5 bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-brand-500/25 transition-all"
+          >
+            <UserCheck className="w-4 h-4" />
+            <span>Sign In / Create Account to Place Order</span>
+          </Link>
+
+          <p className="text-[11px] text-slate-400">
+            Cart items will be preserved after signing in.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="py-8 space-y-8">
       <div>
@@ -136,6 +186,7 @@ export default function CheckoutPage() {
                 <input
                   type="text"
                   required
+                  placeholder="John Doe"
                   value={customerDetails.name}
                   onChange={(e) => setCustomerDetails({ ...customerDetails, name: e.target.value })}
                   className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-brand-500"
@@ -149,6 +200,7 @@ export default function CheckoutPage() {
                 <input
                   type="email"
                   required
+                  placeholder="john@example.com"
                   value={customerDetails.email}
                   onChange={(e) => setCustomerDetails({ ...customerDetails, email: e.target.value })}
                   className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-brand-500"
@@ -162,6 +214,7 @@ export default function CheckoutPage() {
                 <input
                   type="tel"
                   required
+                  placeholder="+1 (555) 000-0000"
                   value={customerDetails.phone}
                   onChange={(e) => setCustomerDetails({ ...customerDetails, phone: e.target.value })}
                   className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-brand-500"
@@ -175,6 +228,7 @@ export default function CheckoutPage() {
                 <input
                   type="text"
                   required
+                  placeholder="New York"
                   value={customerDetails.city}
                   onChange={(e) => setCustomerDetails({ ...customerDetails, city: e.target.value })}
                   className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-brand-500"
@@ -188,6 +242,7 @@ export default function CheckoutPage() {
                 <input
                   type="text"
                   required
+                  placeholder="123 Commerce St, Suite 100"
                   value={customerDetails.address}
                   onChange={(e) => setCustomerDetails({ ...customerDetails, address: e.target.value })}
                   className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-brand-500"
