@@ -1,0 +1,317 @@
+'use client';
+
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Image from 'next/image';
+import { useCartStore } from '@/store/useCartStore';
+import { useAuth } from '@/context/AuthContext';
+import { createOrder, validateCoupon } from '@/lib/firestoreServices';
+import { ShoppingBag, Tag, Check, ShieldCheck, CreditCard, Truck, ArrowRight, Lock } from 'lucide-react';
+import toast from 'react-hot-toast';
+
+export default function CheckoutPage() {
+  const router = useRouter();
+  const { user } = useAuth();
+  const {
+    items,
+    getSubtotal,
+    getDiscountAmount,
+    getTotalAmount,
+    appliedCoupon,
+    applyCoupon,
+    removeCoupon,
+    clearCart
+  } = useCartStore();
+
+  const [customerDetails, setCustomerDetails] = useState({
+    name: user?.displayName || 'Alex Mercer',
+    email: user?.email || 'alex.mercer@example.com',
+    phone: '+1 (555) 234-5678',
+    address: '742 Evergreen Terrace',
+    city: 'Springfield',
+    zipCode: '97477'
+  });
+
+  const [couponInput, setCouponInput] = useState('');
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const [submittingOrder, setSubmittingOrder] = useState(false);
+
+  const subtotal = getSubtotal();
+  const discount = getDiscountAmount();
+  const total = getTotalAmount();
+
+  const handleApplyCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!couponInput.trim()) return;
+
+    setValidatingCoupon(true);
+    const res = await validateCoupon(couponInput, subtotal);
+    setValidatingCoupon(false);
+
+    if (res.valid && res.coupon) {
+      applyCoupon(res.coupon);
+      toast.success(res.message);
+      setCouponInput('');
+    } else {
+      toast.error(res.message);
+    }
+  };
+
+  const handlePlaceOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (items.length === 0) {
+      toast.error('Your cart is empty.');
+      return;
+    }
+
+    setSubmittingOrder(true);
+    toast.loading('Creating order in Firestore...', { id: 'order' });
+
+    try {
+      const orderItems = items.map((item) => ({
+        productId: item.product.id,
+        title: item.product.title,
+        price: item.product.discountPrice || item.product.price,
+        quantity: item.quantity,
+        image: item.product.images[0] || '',
+      }));
+
+      const orderId = await createOrder({
+        userId: user ? user.uid : 'guest-' + Date.now(),
+        customerDetails,
+        items: orderItems,
+        subtotal,
+        discountApplied: discount,
+        couponCode: appliedCoupon?.code,
+        totalAmount: total,
+      });
+
+      toast.success('Order placed successfully!', { id: 'order' });
+      clearCart();
+      router.push(`/orders/${orderId}`);
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to place order. Please try again.', { id: 'order' });
+    } finally {
+      setSubmittingOrder(false);
+    }
+  };
+
+  if (items.length === 0) {
+    return (
+      <div className="py-20 text-center space-y-4">
+        <ShoppingBag className="w-12 h-12 text-slate-400 mx-auto" />
+        <h2 className="text-xl font-bold">No items in checkout</h2>
+        <button onClick={() => router.push('/products')} className="px-5 py-2.5 bg-brand-600 text-white font-bold text-xs rounded-full">
+          Return to Shop
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="py-8 space-y-8">
+      <div>
+        <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+          <Lock className="w-6 h-6 text-brand-600" />
+          <span>Secure Checkout</span>
+        </h1>
+        <p className="text-xs text-slate-500 mt-1">Complete your order details below</p>
+      </div>
+
+      <form onSubmit={handlePlaceOrder} className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        {/* Customer Info Form */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
+            <h2 className="text-base font-extrabold text-slate-900 dark:text-white pb-3 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2">
+              <Truck className="w-4 h-4 text-brand-600" />
+              <span>1. Shipping & Customer Details</span>
+            </h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={customerDetails.name}
+                  onChange={(e) => setCustomerDetails({ ...customerDetails, name: e.target.value })}
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-brand-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={customerDetails.email}
+                  onChange={(e) => setCustomerDetails({ ...customerDetails, email: e.target.value })}
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-brand-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  required
+                  value={customerDetails.phone}
+                  onChange={(e) => setCustomerDetails({ ...customerDetails, phone: e.target.value })}
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-brand-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  City
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={customerDetails.city}
+                  onChange={(e) => setCustomerDetails({ ...customerDetails, city: e.target.value })}
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-brand-500"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Street Address
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={customerDetails.address}
+                  onChange={(e) => setCustomerDetails({ ...customerDetails, address: e.target.value })}
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-brand-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
+            <h2 className="text-base font-extrabold text-slate-900 dark:text-white pb-3 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-brand-600" />
+              <span>2. Payment Option</span>
+            </h2>
+
+            <div className="p-4 bg-brand-50/60 dark:bg-brand-950/40 border border-brand-200 dark:border-brand-800 rounded-2xl flex items-center justify-between text-xs">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-brand-600 text-white flex items-center justify-center font-bold">
+                  ✓
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900 dark:text-white">Cash on Delivery / Instant Pay Demo</h4>
+                  <p className="text-[11px] text-slate-500">Test mode order placement enabled</p>
+                </div>
+              </div>
+              <span className="text-xs font-bold text-brand-600">Active</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Order Items & Totals Summary Panel */}
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-6 sticky top-24">
+          <h2 className="text-base font-extrabold text-slate-900 dark:text-white pb-3 border-b border-slate-100 dark:border-slate-800">
+            Cart Review ({items.length})
+          </h2>
+
+          <div className="space-y-3 max-h-52 overflow-y-auto pr-1">
+            {items.map((item) => (
+              <div key={item.product.id} className="flex items-center gap-3 text-xs">
+                <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 flex-shrink-0">
+                  <Image src={item.product.images[0]} alt="" fill className="object-cover" />
+                </div>
+                <div className="flex-1 truncate">
+                  <h4 className="font-semibold text-slate-900 dark:text-white truncate">{item.product.title}</h4>
+                  <p className="text-slate-400">{item.quantity}x @ ${item.product.discountPrice || item.product.price}</p>
+                </div>
+                <div className="font-bold text-slate-900 dark:text-white">
+                  ${((item.product.discountPrice || item.product.price) * item.quantity).toFixed(2)}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Coupon Input */}
+          <div>
+            {appliedCoupon ? (
+              <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs">
+                <span className="text-emerald-800 font-semibold flex items-center gap-1.5">
+                  <Check className="w-4 h-4 text-emerald-600" />
+                  Code {appliedCoupon.code} Applied
+                </span>
+                <button type="button" onClick={removeCoupon} className="text-emerald-700 hover:underline text-[11px] font-bold">
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Tag className="absolute left-3 top-2.5 w-3.5 h-3.5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Coupon Code"
+                    value={couponInput}
+                    onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                    className="w-full pl-8 pr-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 uppercase focus:outline-none"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleApplyCoupon}
+                  disabled={validatingCoupon || !couponInput.trim()}
+                  className="px-3.5 py-2 bg-slate-900 text-white font-bold text-xs rounded-xl hover:bg-brand-600 transition-colors disabled:opacity-50"
+                >
+                  Apply
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2 text-xs text-slate-600 dark:text-slate-400">
+            <div className="flex justify-between">
+              <span>Subtotal</span>
+              <span className="font-bold text-slate-900 dark:text-white">${subtotal.toFixed(2)}</span>
+            </div>
+            {discount > 0 && (
+              <div className="flex justify-between text-emerald-600 font-semibold">
+                <span>Discount Applied</span>
+                <span>-${discount.toFixed(2)}</span>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span>Shipping Fee</span>
+              <span className="text-emerald-600 font-semibold">FREE</span>
+            </div>
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-sm font-extrabold text-slate-900 dark:text-white">
+              <span>Total Pay</span>
+              <span className="text-xl text-brand-600">${total.toFixed(2)}</span>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={submittingOrder}
+            className="w-full py-4 bg-brand-600 hover:bg-brand-500 text-white font-bold text-sm rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-brand-500/25 transition-all transform active:scale-95 disabled:opacity-50"
+          >
+            <span>Place Order Now</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+
+          <div className="flex items-center justify-center gap-2 text-[11px] text-slate-400 pt-1">
+            <ShieldCheck className="w-4 h-4 text-emerald-500" />
+            <span>256-Bit SSL Encrypted Transaction</span>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+}
