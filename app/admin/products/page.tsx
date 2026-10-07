@@ -13,6 +13,7 @@ import {
 } from '@/lib/firestoreServices';
 import { Plus, Trash2, Edit3, Grid, Search, Upload, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ImageUploader from '@/components/admin/ImageUploader';
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -358,23 +359,18 @@ export default function AdminProductsPage() {
                 </div>
               </div>
 
-              {/* Image Upload & URL Input */}
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold mb-1">Image URL or Storage Upload</label>
+              {/* Image Upload & Preview Component */}
+              <ImageUploader onImageUploaded={(url) => setImageUrl(url)} initialUrl={imageUrl} />
+
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">Direct Image URL (Optional)</label>
                 <input
                   type="text"
                   value={imageUrl}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setImageUrl(e.target.value)}
                   placeholder="https://images.unsplash.com/..."
-                  className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200"
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
                 />
-                <div className="flex items-center gap-2">
-                  <label className="cursor-pointer px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1.5 border border-slate-200">
-                    <Upload className="w-3.5 h-3.5 text-brand-600" />
-                    <span>{isUploading ? 'Uploading to Firebase...' : 'Upload Image File'}</span>
-                    <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
-                  </label>
-                </div>
               </div>
 
               <div>
