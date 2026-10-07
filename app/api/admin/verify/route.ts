@@ -9,7 +9,7 @@ export async function GET() {
     const sessionToken = cookieStore.get('admin_session')?.value;
 
     if (!sessionToken) {
-      return NextResponse.json({ authenticated: false }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized', authenticated: false }, { status: 401 });
     }
 
     const decoded = Buffer.from(sessionToken, 'base64').toString('utf-8');
@@ -20,8 +20,8 @@ export async function GET() {
       return NextResponse.json({ authenticated: true, email });
     }
 
-    return NextResponse.json({ authenticated: false }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized', authenticated: false }, { status: 401 });
   } catch (error) {
-    return NextResponse.json({ authenticated: false }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized', authenticated: false }, { status: 401 });
   }
 }

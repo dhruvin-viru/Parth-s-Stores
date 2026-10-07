@@ -3,6 +3,10 @@ import { cookies } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
 
+export async function GET() {
+  return NextResponse.json({ error: 'Method Not Allowed' }, { status: 405 });
+}
+
 export async function POST() {
   try {
     const cookieStore = cookies();

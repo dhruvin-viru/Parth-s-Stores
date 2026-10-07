@@ -30,8 +30,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const checkAuthStatus = async () => {
     try {
       const res = await fetch('/api/admin/verify', { cache: 'no-store' });
+      if (res.status === 401) {
+        setIsAuthenticated(false);
+        return;
+      }
       if (res.ok) {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         if (data.authenticated) {
           setIsAuthenticated(true);
           return;
@@ -39,6 +43,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       }
       setIsAuthenticated(false);
     } catch (err) {
+      console.warn('Admin verify check:', err);
       setIsAuthenticated(false);
     }
   };

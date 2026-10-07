@@ -1,32 +1,32 @@
-import { storage } from "./firebase";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-
 /**
- * Uploads a file to Firebase Storage under /products folder
+ * Uploads a file directly to Cloudinary using unsigned upload
  * @param file File object from input tag
- * @returns Direct HTTPS URL string of uploaded image
+ * @returns Direct HTTPS URL string of the uploaded image
  */
 export async function uploadProductImage(file: File): Promise<string> {
   if (!file) throw new Error("No file provided");
 
-  // Create a unique filename using timestamp
-  const fileName = `products/${Date.now()}_${file.name}`;
-  const storageRef = ref(storage, fileName);
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "arla4aqm";
+  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "ml_default";
 
-  try {
-    // Upload file bytes
-    const snapshot = await uploadBytes(storageRef, file);
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", uploadPreset);
 
-    // Get and return the downloadable HTTPS URL
-    const downloadURL = await getDownloadURL(snapshot.ref);
-    return downloadURL;
-  } catch (error) {
-    console.warn("Firebase Storage upload fallback triggered:", error);
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = (err) => reject(err);
-      reader.readAsDataURL(file);
-    });
+  const response = await fetch(
+    `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    console.error("Cloudinary upload failed:", errorData);
+    throw new Error(errorData.error?.message || "Failed to upload image to Cloudinary");
   }
+
+  const data = await response.json();
+  return data.secure_url;
 }

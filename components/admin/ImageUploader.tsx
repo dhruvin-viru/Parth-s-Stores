@@ -21,14 +21,14 @@ export default function ImageUploader({ onImageUploaded, initialUrl }: ImageUplo
 
     try {
       setUploading(true);
-      // Upload to Firebase Storage
+      // Upload directly to Cloudinary
       const url = await uploadProductImage(file);
       setPreviewUrl(url);
       onImageUploaded(url); // Pass URL to parent form state
-      toast.success("Product image uploaded successfully!");
-    } catch (error) {
-      console.error("Image upload failed:", error);
-      toast.error("Failed to upload image. Please try again.");
+      toast.success("Image uploaded to Cloudinary successfully!");
+    } catch (error: any) {
+      console.error("Cloudinary image upload failed:", error);
+      toast.error(error?.message || "Failed to upload image. Please try again.");
     } finally {
       setUploading(false);
     }
@@ -37,7 +37,7 @@ export default function ImageUploader({ onImageUploaded, initialUrl }: ImageUplo
   return (
     <div className="space-y-4">
       <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-        Product Image (Firebase Storage Upload)
+        Product Image (Cloudinary Unsigned Upload)
       </label>
 
       {/* Preview Box */}
@@ -64,7 +64,7 @@ export default function ImageUploader({ onImageUploaded, initialUrl }: ImageUplo
       {uploading && (
         <div className="flex items-center gap-2 text-xs text-brand-600 font-medium animate-pulse">
           <Loader2 className="w-4 h-4 animate-spin" />
-          <span>Uploading to Firebase Storage...</span>
+          <span>Uploading directly to Cloudinary...</span>
         </div>
       )}
     </div>
