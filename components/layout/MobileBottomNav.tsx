@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Grid, ShoppingBag, PackageCheck } from 'lucide-react';
@@ -8,8 +8,13 @@ import { useCartStore } from '@/store/useCartStore';
 
 export const MobileBottomNav: React.FC = () => {
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
   const { getItemCount, openCart } = useCartStore();
   const itemCount = getItemCount();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const isActive = (path: string) => pathname === path;
 
@@ -45,7 +50,7 @@ export const MobileBottomNav: React.FC = () => {
         >
           <div className="relative">
             <ShoppingBag className="w-5 h-5 mb-0.5" />
-            {itemCount > 0 && (
+            {mounted && itemCount > 0 && (
               <span className="absolute -top-1 -right-2 bg-accent-600 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                 {itemCount}
               </span>

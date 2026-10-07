@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
@@ -20,10 +20,15 @@ export const Header: React.FC = () => {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const { getItemCount, openCart } = useCartStore();
   const { user, logout } = useAuth();
   const itemCount = getItemCount();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,7 +93,7 @@ export const Header: React.FC = () => {
                 aria-label="Shopping Cart"
               >
                 <ShoppingBag className="w-5 h-5" />
-                {itemCount > 0 && (
+                {mounted && itemCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-gradient-to-r from-accent-600 to-rose-600 text-white text-[10px] font-black rounded-full flex items-center justify-center animate-scale-in shadow-glow-rose">
                     {itemCount}
                   </span>
@@ -96,7 +101,7 @@ export const Header: React.FC = () => {
               </button>
 
               {/* User Menu */}
-              {user ? (
+              {mounted && user ? (
                 <div className="flex items-center gap-2 pl-2">
                   <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200">
                     <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
@@ -128,7 +133,7 @@ export const Header: React.FC = () => {
               className="relative p-2 text-slate-700 dark:text-slate-200 rounded-lg"
             >
               <ShoppingBag className="w-6 h-6" />
-              {itemCount > 0 && (
+              {mounted && itemCount > 0 && (
                 <span className="absolute top-0 right-0 w-4 h-4 bg-accent-600 text-white text-[9px] font-black rounded-full flex items-center justify-center">
                   {itemCount}
                 </span>
