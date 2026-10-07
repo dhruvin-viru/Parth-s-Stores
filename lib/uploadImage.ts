@@ -1,13 +1,18 @@
 /**
  * Uploads a file directly to Cloudinary using unsigned upload
+ * Reads exclusively from process.env with zero hardcoded string literal fallbacks
  * @param file File object from input tag
  * @returns Direct HTTPS URL string of the uploaded image
  */
 export async function uploadProductImage(file: File): Promise<string> {
   if (!file) throw new Error("No file provided");
 
-  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "arla4aqm";
-  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "ml_default";
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
+  if (!cloudName || !uploadPreset) {
+    throw new Error("Missing Cloudinary configuration in environment variables");
+  }
 
   const formData = new FormData();
   formData.append("file", file);
